@@ -1,0 +1,95 @@
+services:
+
+  mariadb:
+    container_name: mariadb
+    build:
+      context: requirements/mariadb
+    image: my-mariadb
+    env_file:
+      - logins.env
+    environment:
+      MYSQL_PASSWORD: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD: /run/secrets/mysql_root_password
+    secrets:
+      - mysql_password
+      - mysql_root_password
+    networks:
+      - inception_network
+    ports:
+      - 3306:3306
+    volumes:
+      - mariadb:/var/lib/mysql
+    restart: on-failure
+
+  wordpress:
+    container_name: wordpress
+    build:
+      context: requirements/wordpress
+    image: my-wordpress
+    env_file: 
+      - logins.env
+    environment:
+      MYSQL_PASSWORD: /run/secrets/mysql_password
+      WP_ADMIN_PASSWORD: /run/secrets/wp_admin_password
+      WP_USER_PASSWORD: /run/secrets/wp_user_password
+    secrets:
+      - mysql_password
+      - wp_admin_password
+      - wp_user_password
+    networks:
+      - inception_network
+    ports:
+      - 9000:9000
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      - mariadb
+    restart: on-failure
+
+  nginx:
+    container_name: nginx
+    build:
+      context: requirements/nginx
+    image: my-nginx
+    env_file: 
+      - logins.env
+    networks:
+      - inception_network
+    volumes:
+      - wordpress:/var/www/html
+    depends_on:
+      - wordpress
+    ports:
+      - 443:443
+    restart: on-failure
+
+volumes:
+  mariadb:
+    name: mariadb
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/ole/data/mariadb
+      o: bind
+  wordpress:
+    name: wordpress
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/ole/data/wordpress
+      o: bind
+
+networks:
+  inception_network:
+    name: inception_network
+    driver: bridge
+
+secrets:
+  mysql_password:
+    file: ./requirements/secrets/mysql_password.secret
+  mysql_root_password:
+    file: ./requirements/secrets/mysql_root_password.secret
+  wp_admin_password:
+    file: ./requirements/secrets/wp_admin_password.secret
+  wp_user_password:
+    file: ./requirements/secrets/wp_user_password.secret
